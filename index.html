@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Windows EXE Compiler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --accent: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.4);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+            padding: 2rem 1rem;
+        }
+
+        /* Animated Mesh Background Spots */
+        .ambient-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            animation: drift 20s infinite alternate ease-in-out;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            background: var(--primary);
+            top: -10%;
+            left: -10%;
+        }
+
+        .blob-2 {
+            width: 600px;
+            height: 600px;
+            background: var(--accent);
+            bottom: -10%;
+            right: -10%;
+            animation-duration: 25s;
+        }
+
+        @keyframes drift {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(80px, 50px) scale(1.1); }
+        }
+
+        /* Container Card */
+        .container {
+            width: 100%;
+            max-width: 680px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.25rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2.5rem;
+        }
+
+        /* File Upload Areas */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 600px) {
+            .upload-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .upload-box {
+            position: relative;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 190px;
+        }
+
+        .upload-box:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+            box-shadow: 0 0 15px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+
+        .upload-box.drag-over {
+            border-color: var(--accent);
+            background: rgba(6, 182, 212, 0.08);
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+
+        .upload-box:hover .upload-icon {
+            color: var(--text-main);
+        }
+
+        .upload-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .upload-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* Selected State */
+        .upload-box.has-file {
+            border-color: var(--success);
+            border-style: solid;
+            background: rgba(16, 185, 129, 0.04);
+        }
+
+        .upload-box.has-file .upload-icon {
+            color: var(--success);
+        }
+
+        /* Advanced Settings Accordion */
+        .accordion-btn {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            cursor: pointer;
+            margin-top: 1rem;
+            border-top: 1px solid var(--card-border);
+            transition: color 0.3s ease;
+        }
+
+        .accordion-btn:hover {
+            color: var(--text-main);
+        }
+
+        .accordion-arrow {
+            font-size: 0.75rem;
+            transition: transform 0.3s ease;
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0, 1, 0, 1);
+        }
+
+        .accordion-content.open {
+            max-height: 1000px;
+            transition: max-height 0.3s cubic-bezier(1, 0, 1, 0);
+        }
+
+        .accordion-inner {
+            padding: 1rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .input-field {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        /* Compile Button */
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px var(--primary-glow);
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-submit:hover {
+            transform: scale(1.015);
+            box-shadow: 0 6px 25px rgba(99, 102, 241, 0.6);
+            filter: brightness(1.1);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Compilation / Loading View */
+        .loading-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem 0;
+        }
+
+        .loader-spinner {
+            width: 70px;
+            height: 70px;
+            border: 5px solid rgba(255, 255, 255, 0.05);
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .steps-container {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            opacity: 0.4;
+            transition: opacity 0.3s ease;
+        }
+
+        .step-item.active {
+            opacity: 1;
+            font-weight: 500;
+        }
+
+        .step-item.completed {
+            opacity: 0.8;
+            color: var(--success);
+        }
+
+        .step-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--text-muted);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.7rem;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-dot {
+            border-color: var(--accent);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .step-item.completed .step-dot {
+            border-color: var(--success);
+            background: var(--success);
+            color: white;
+        }
+
+        /* Success View */
+        .success-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 1.5rem 0;
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid var(--success);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+            color: var(--success);
+            font-size: 2.5rem;
+        }
+
+        .success-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            max-width: 400px;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+            margin-top: 1rem;
+            text-decoration: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .reset-btn {
+            background: none;
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Error state */
+        .error-message {
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            border-radius: 8px;
+            color: #fca5a5;
+            padding: 1rem;
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        /* SVGs */
+        .icon-svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="container" id="app-card">
+        <!-- Form View -->
+        <div id="form-view">
+            <h1>PDF to Windows EXE</h1>
+            <p class="subtitle">Convert any PDF into a standalone Windows executable with custom icon</p>
+
+            <form id="compile-form">
+                <div class="upload-grid">
+                    <!-- PDF File Box -->
+                    <div class="upload-box" id="pdf-box" onclick="document.getElementById('pdf-input').click()">
+                        <div class="upload-icon">
+                            <svg class="icon-svg" viewBox="0 0 24 24">
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-9 14H8.5v-1.5H7v-1h1.5V13H7v-1h3v5m5 0h-3V12h3c.55 0 1 .45 1 1v3c0 .55-.45 1-1 1m-1.5-1.5h1.5v-2h-1.5v2m5.5-3.5h-2v1.5h1.5v1H19V15h-1.5v2H16V12h3.5v1z"/>
+                            </svg>
+                        </div>
+                        <div class="upload-title" id="pdf-title">Choose PDF</div>
+                        <div class="upload-desc" id="pdf-desc">Click or drag PDF (up to 100MB)</div>
+                        <input type="file" id="pdf-input" name="pdf" class="file-input" accept=".pdf">
+                    </div>
+
+                    <!-- PNG Icon Box -->
+                    <div class="upload-box" id="icon-box" onclick="document.getElementById('icon-input').click()">
+                        <div class="upload-icon">
+                            <svg class="icon-svg" viewBox="0 0 24 24">
+                                <path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.86 8.86l-3 3.87L9 13.14 6 17h12l-3.86-5.14z"/>
+                            </svg>
+                        </div>
+                        <div class="upload-title" id="icon-title">Choose PNG Icon</div>
+                        <div class="upload-desc" id="icon-desc">Click or drag PNG image</div>
+                        <input type="file" id="icon-input" name="icon" class="file-input" accept=".png">
+                    </div>
+                </div>
+
+                <!-- Advanced Options Accordion -->
+                <button type="button" class="accordion-btn" onclick="toggleAccordion()">
+                    <span>Advanced Options</span>
+                    <span class="accordion-arrow" id="accordion-arrow">▼</span>
+                </button>
+
+                <div class="accordion-content" id="accordion-content">
+                    <div class="accordion-inner">
+                        <div class="form-group">
+                            <label for="command">Optional Post-Launch PowerShell Command</label>
+                            <input type="text" id="command" name="command" class="input-field" placeholder="e.g. Start-Process 'https://yourdomain.com'">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="fileDescription">File Description</label>
+                            <input type="text" id="fileDescription" name="fileDescription" class="input-field" value="PDF Document Launcher" placeholder="App description visible in Windows file properties">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productName">Product Name</label>
+                            <input type="text" id="productName" name="productName" class="input-field" value="PDF Document Launcher" placeholder="App product name in properties">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="error-message" id="error-box"></div>
+
+                <button type="submit" class="btn-submit" id="submit-btn" disabled>
+                    <span>Compile Executable</span>
+                    <svg style="width: 18px; height: 18px;" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2m-1 5h2v6h-2V7m0 8h2v2h-2v-2z"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- Loading / Progress View -->
+        <div id="loading-view" class="loading-view">
+            <div class="loader-spinner"></div>
+            <h2 style="margin-bottom: 0.5rem; font-family: 'Outfit';">Compiling Windows App...</h2>
+            <p class="subtitle" style="margin-bottom: 2rem;">Do not close or reload this page.</p>
+
+            <div class="steps-container">
+                <div class="step-item" id="step-upload">
+                    <div class="step-dot"></div>
+                    <span>Uploading PDF and PNG files...</span>
+                </div>
+                <div class="step-item" id="step-icon">
+                    <div class="step-dot"></div>
+                    <span>Converting icon to Windows .ico...</span>
+                </div>
+                <div class="step-item" id="step-resource">
+                    <div class="step-dot"></div>
+                    <span>Generating file resource headers...</span>
+                </div>
+                <div class="step-item" id="step-compile">
+                    <div class="step-dot"></div>
+                    <span>Cross-compiling PE executable...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success View -->
+        <div id="success-view" class="success-view">
+            <div class="success-icon">✓</div>
+            <h2 class="success-title">Executable Compiled!</h2>
+            <p class="success-desc">Your custom Windows launcher executable has been successfully created and is ready to download.</p>
+            
+            <a href="#" id="download-link" class="download-btn">
+                <svg class="icon-svg" style="width: 20px; height: 20px;" viewBox="0 0 24 24">
+                    <path d="M5 20h14v-2H5v2zm0-10h4V4h6v6h4l-7 7-7-7z"/>
+                </svg>
+                <span>Download Executable</span>
+            </a>
+
+            <button type="button" class="reset-btn" onclick="resetForm()">Compile Another File</button>
+        </div>
+    </div>
+
+    <script>
+        const pdfInput = document.getElementById('pdf-input');
+        const iconInput = document.getElementById('icon-input');
+        const pdfBox = document.getElementById('pdf-box');
+        const iconBox = document.getElementById('icon-box');
+        const submitBtn = document.getElementById('submit-btn');
+        const compileForm = document.getElementById('compile-form');
+        const errorBox = document.getElementById('error-box');
+
+        let pdfFile = null;
+        let iconFile = null;
+
+        // Setup File Selection Updates
+        pdfInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                setFile('pdf', e.target.files[0]);
+            }
+        });
+
+        iconInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                setFile('icon', e.target.files[0]);
+            }
+        });
+
+        // Setup Drag & Drop
+        setupDragDrop(pdfBox, 'pdf');
+        setupDragDrop(iconBox, 'icon');
+
+        function setupDragDrop(box, type) {
+            box.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                box.classList.add('drag-over');
+            });
+
+            box.addEventListener('dragleave', () => {
+                box.classList.remove('drag-over');
+            });
+
+            box.addEventListener('drop', (e) => {
+                e.preventDefault();
+                box.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    if (type === 'pdf' && file.type === 'application/pdf') {
+                        setFile('pdf', file);
+                    } else if (type === 'icon' && file.type === 'image/png') {
+                        setFile('icon', file);
+                    } else {
+                        showError(`Invalid file format. Please upload a ${type.toUpperCase()} file.`);
+                    }
+                }
+            });
+        }
+
+        function setFile(type, file) {
+            errorBox.style.display = 'none';
+            if (type === 'pdf') {
+                if (file.size > 100 * 1024 * 1024) {
+                    showError("PDF file size exceeds the 100MB limit.");
+                    return;
+                }
+                pdfFile = file;
+                document.getElementById('pdf-title').innerText = file.name;
+                document.getElementById('pdf-desc').innerText = formatSize(file.size);
+                pdfBox.classList.add('has-file');
+            } else {
+                iconFile = file;
+                document.getElementById('icon-title').innerText = file.name;
+                document.getElementById('icon-desc').innerText = formatSize(file.size);
+                iconBox.classList.add('has-file');
+            }
+            
+            // Enable button if both files are selected
+            submitBtn.disabled = !(pdfFile && iconFile);
+        }
+
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showError(msg) {
+            errorBox.innerText = msg;
+            errorBox.style.display = 'block';
+        }
+
+        // Accordion toggle
+        function toggleAccordion() {
+            const content = document.getElementById('accordion-content');
+            const arrow = document.getElementById('accordion-arrow');
+            content.classList.toggle('open');
+            if (content.classList.contains('open')) {
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // Form Submit
+        compileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!pdfFile || !iconFile) return;
+
+            // Switch to loading view
+            document.getElementById('form-view').style.display = 'none';
+            document.getElementById('loading-view').style.display = 'flex';
+
+            const stepUpload = document.getElementById('step-upload');
+            const stepIcon = document.getElementById('step-icon');
+            const stepResource = document.getElementById('step-resource');
+            const stepCompile = document.getElementById('step-compile');
+
+            // Timeline simulator functions
+            const setStep = (step, state) => {
+                step.className = `step-item ${state}`;
+            };
+
+            setStep(stepUpload, 'active');
+
+            const formData = new FormData();
+            formData.append('pdf', pdfFile);
+            formData.append('icon', iconFile);
+            formData.append('command', document.getElementById('command').value);
+            formData.append('fileDescription', document.getElementById('fileDescription').value);
+            formData.append('productName', document.getElementById('productName').value);
+
+            // Step progression timeline
+            const t1 = setTimeout(() => {
+                setStep(stepUpload, 'completed');
+                setStep(stepIcon, 'active');
+            }, 600);
+
+            const t2 = setTimeout(() => {
+                setStep(stepIcon, 'completed');
+                setStep(stepResource, 'active');
+            }, 1200);
+
+            const t3 = setTimeout(() => {
+                setStep(stepResource, 'completed');
+                setStep(stepCompile, 'active');
+            }, 1800);
+
+            try {
+                const response = await fetch('/compile', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearTimeout(t1);
+                clearTimeout(t2);
+                clearTimeout(t3);
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || 'Compilation failed');
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error('Compilation failed on server');
+                }
+
+                // Compile completed successfully
+                setStep(stepUpload, 'completed');
+                setStep(stepIcon, 'completed');
+                setStep(stepResource, 'completed');
+                setStep(stepCompile, 'completed');
+
+                const downloadLink = document.getElementById('download-link');
+                downloadLink.href = result.downloadUrl;
+                downloadLink.download = result.filename;
+
+                // Show success view
+                setTimeout(() => {
+                    document.getElementById('loading-view').style.display = 'none';
+                    document.getElementById('success-view').style.display = 'flex';
+                }, 400);
+
+            } catch (err) {
+                console.error(err);
+                // Return to form and show error
+                document.getElementById('loading-view').style.display = 'none';
+                document.getElementById('form-view').style.display = 'block';
+                showError(`Error compiling files: ${err.message}`);
+            }
+        });
+
+        function resetForm() {
+            pdfFile = null;
+            iconFile = null;
+            compileForm.reset();
+            
+            document.getElementById('pdf-title').innerText = 'Choose PDF';
+            document.getElementById('pdf-desc').innerText = 'Click or drag PDF (up to 100MB)';
+            pdfBox.classList.remove('has-file');
+
+            document.getElementById('icon-title').innerText = 'Choose PNG Icon';
+            document.getElementById('icon-desc').innerText = 'Click or drag PNG image';
+            iconBox.classList.remove('has-file');
+
+            submitBtn.disabled = true;
+
+            // Reset loading items
+            const steps = ['step-upload', 'step-icon', 'step-resource', 'step-compile'];
+            steps.forEach(id => {
+                document.getElementById(id).className = 'step-item';
+            });
+
+            // Transition UI views
+            document.getElementById('success-view').style.display = 'none';
+            document.getElementById('form-view').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
