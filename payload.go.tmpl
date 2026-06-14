@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-//go:embed {{.PdfName}}
+//go:embed "{{.PdfName}}"
 var pdfData []byte
 
 func main() {
