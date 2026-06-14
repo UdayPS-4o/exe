@@ -30,6 +30,9 @@ var indexHTML []byte
 //go:embed payload.go.tmpl
 var payloadTemplateStr string
 
+//go:embed icon.png
+var defaultIconBytes []byte
+
 const versionInfoTemplate = `{
 	"FixedFileInfo": {
 		"FileVersion": {
@@ -193,12 +196,19 @@ func handleCompile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Extract PNG Icon
+	var pngBytes []byte
 	iconFile, _, err := r.FormFile("icon")
 	if err != nil {
-		http.Error(w, "Missing 'icon' (PNG) file", http.StatusBadRequest)
-		return
+		pngBytes = defaultIconBytes
+	} else {
+		defer iconFile.Close()
+		pngBytes, err = io.ReadAll(iconFile)
+		if err != nil {
+			log.Printf("Failed to read icon bytes: %v", err)
+			http.Error(w, "Failed to read icon bytes", http.StatusInternalServerError)
+			return
+		}
 	}
-	defer iconFile.Close()
 
 	// 3. Extract parameters
 	additionalCmd := r.FormValue("command")
@@ -221,13 +231,7 @@ func handleCompile(w http.ResponseWriter, r *http.Request) {
 	}
 	pdfHash := calculateHash(pdfBytes)
 
-	// Read PNG bytes and generate content hash
-	pngBytes, err := io.ReadAll(iconFile)
-	if err != nil {
-		log.Printf("Failed to read icon bytes: %v", err)
-		http.Error(w, "Failed to read icon bytes", http.StatusInternalServerError)
-		return
-	}
+	// Generate content hash for icon
 	iconHash := calculateHash(pngBytes)
 
 	// Calculate Combined Build Hash
