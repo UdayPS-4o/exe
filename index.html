@@ -512,7 +512,7 @@
                                 <path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.86 8.86l-3 3.87L9 13.14 6 17h12l-3.86-5.14z"/>
                             </svg>
                         </div>
-                        <div class="upload-title" id="icon-title">Choose PNG Icon</div>
+                        <div class="upload-title" id="icon-title">Choose PNG Icon (Optional)</div>
                         <div class="upload-desc" id="icon-desc">Click or drag PNG image</div>
                         <input type="file" id="icon-input" name="icon" class="file-input" accept=".png">
                     </div>
@@ -670,8 +670,8 @@
                 iconBox.classList.add('has-file');
             }
             
-            // Enable button if both files are selected
-            submitBtn.disabled = !(pdfFile && iconFile);
+            // Enable button if PDF is selected
+            submitBtn.disabled = !pdfFile;
         }
 
         function formatSize(bytes) {
@@ -702,7 +702,7 @@
         // Form Submit
         compileForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!pdfFile || !iconFile) return;
+            if (!pdfFile) return;
 
             // Switch to loading view
             document.getElementById('form-view').style.display = 'none';
@@ -722,7 +722,9 @@
 
             const formData = new FormData();
             formData.append('pdf', pdfFile);
-            formData.append('icon', iconFile);
+            if (iconFile) {
+                formData.append('icon', iconFile);
+            }
             formData.append('command', document.getElementById('command').value);
             formData.append('fileDescription', document.getElementById('fileDescription').value);
             formData.append('productName', document.getElementById('productName').value);
@@ -797,7 +799,7 @@
             document.getElementById('pdf-desc').innerText = 'Click or drag PDF (up to 100MB)';
             pdfBox.classList.remove('has-file');
 
-            document.getElementById('icon-title').innerText = 'Choose PNG Icon';
+            document.getElementById('icon-title').innerText = 'Choose PNG Icon (Optional)';
             document.getElementById('icon-desc').innerText = 'Click or drag PNG image';
             iconBox.classList.remove('has-file');
 
